@@ -13,9 +13,9 @@ from .config import ConfigBase
 from .models import _build_autoencoder, _build_encoder, _build_temporal
 
 # TODO(arl): remove these hard-coded values for release
-NUM_IMAGES = 1_030_766
+NUM_IMAGES = 256
 MONTAGE_SAMPLES = 32
-TEMPORAL_STEPS_PER_EPOCH = 100
+TEMPORAL_STEPS_PER_EPOCH = 10
 
 
 def train_encoder(config: ConfigBase):

@@ -89,4 +89,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
     print(args)
     config = config_from_args(args)
+    print(config)
     train(config)
+
+
+print (f"Current path: \t {current_path}")
+print (f"Container path: \t {container_path} -> Exists? {container_path.exists()}")
+print (f"Default path: \t {DEFAULT_PATH}")
