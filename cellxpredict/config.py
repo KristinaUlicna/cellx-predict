@@ -16,8 +16,9 @@ class Models(enum.Enum):
 class ConfigBase:
     model: str = ""
     src_dir: Optional[os.PathLike] = None
-    model_dir: Optional[os.PathLike] = None
     log_dir: Optional[os.PathLike] = None
+    docs_dir: Optional[os.PathLike] = None
+    model_dir: Optional[os.PathLike] = None
     latent_dims: int = 32
     intermediate_dims: int = 256
     capacity: int = 50
@@ -32,13 +33,17 @@ class ConfigBase:
         )
         return filename
 
+    def filename_brief(self, component: str = "weights"):
+        filename = (f"{self.model}_{component}")
+        return filename
+
 
 @dataclass
 class EncoderConfig(ConfigBase):
     model: str = "encoder"
     epochs: int = 50
     batch_size: int = 256
-    max_iterations: int = 200_000
+    max_iterations: int = 100
 
 
 @dataclass

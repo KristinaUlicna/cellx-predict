@@ -33,6 +33,13 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        "--docs_dir",
+        type=Path,
+        default=DEFAULT_PATH / "docs",
+        help="path to the documentation output directory",
+    )
+
+    parser.add_argument(
         "--model_dir",
         type=Path,
         default=DEFAULT_PATH / "models",
@@ -65,6 +72,13 @@ if __name__ == "__main__":
         type=int,
         default=50,
         help="training epochs",
+    )
+
+    parser.add_argument(
+        "--max_iterations",
+        type=int,
+        default=200,
+        help="maximum number of iterations",
     )
 
     parser.add_argument(
