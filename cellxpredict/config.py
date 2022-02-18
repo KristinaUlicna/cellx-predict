@@ -17,7 +17,6 @@ class ConfigBase:
     model: str = ""
     src_dir: Optional[os.PathLike] = None
     log_dir: Optional[os.PathLike] = None
-    docs_dir: Optional[os.PathLike] = None
     model_dir: Optional[os.PathLike] = None
     latent_dims: int = 32
     intermediate_dims: int = 256
@@ -27,13 +26,6 @@ class ConfigBase:
     layers: List[int] = field(default_factory=lambda: [8, 16, 32, 64])
 
     def filename(self, component: str = "weights"):
-        filename = (
-            f"{self.model}_{component}_capacity={self.capacity}_"
-            f"z={self.latent_dims}_gamma={self.gamma}"
-        )
-        return filename
-
-    def filename_brief(self, component: str = "weights"):
         filename = (f"{self.model}_{component}")
         return filename
 
@@ -43,7 +35,9 @@ class EncoderConfig(ConfigBase):
     model: str = "encoder"
     epochs: int = 50
     batch_size: int = 256
-    max_iterations: int = 100
+    num_images: int = None
+    max_iterations: int = None
+    max_iterations_fraction: float = 0.9
 
 
 @dataclass

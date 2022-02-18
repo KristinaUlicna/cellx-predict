@@ -33,13 +33,6 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--docs_dir",
-        type=Path,
-        default=DEFAULT_PATH / "docs",
-        help="path to the documentation output directory",
-    )
-
-    parser.add_argument(
         "--model_dir",
         type=Path,
         default=DEFAULT_PATH / "models",
@@ -61,6 +54,13 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        "--layers",
+        type=ast.literal_eval,
+        default=[8, 16, 32, 64],
+        help="encoder layers list",
+    )
+
+    parser.add_argument(
         "--batch_size",
         type=int,
         default=256,
@@ -75,10 +75,10 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--max_iterations",
-        type=int,
-        default=200,
-        help="maximum number of iterations",
+        "--max_iterations_fraction",
+        type=float,
+        default=0.9,
+        help="percentage of steps before capacity reaches max value",
     )
 
     parser.add_argument(

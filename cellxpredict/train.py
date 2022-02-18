@@ -3,19 +3,20 @@ import json
 from pathlib import Path
 
 import numpy as np
+
 from cellx.callbacks import (
     tensorboard_confusion_matrix_callback,
     tensorboard_montage_callback,
 )
+from cellx.tools.dataset import count_images_in_dataset
 from cellx.train import create_tensorboard_log_dir
 from tensorflow import keras as K
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 from .config import ConfigBase
 from .models import _build_autoencoder, _build_encoder, _build_temporal
 
 # TODO(arl): remove these hard-coded values for release
-NUM_IMAGES = 100
 MONTAGE_SAMPLES = 32
 TEMPORAL_STEPS_PER_EPOCH = 100
 
@@ -23,6 +24,14 @@ TEMPORAL_STEPS_PER_EPOCH = 100
 def train_encoder(config: ConfigBase):
     """Train the encoder model."""
     from .dataset import encoder_training_dataset, encoder_validation_dataset
+
+    # soft-code variables for the model
+    config.num_images = count_images_in_dataset(config.src_dir)
+
+    # assign the max_iterations for capacity scaling
+    steps_per_epoch = config.num_images // config.batch_size
+    iter_ramp_up = config.epochs * steps_per_epoch
+    config.max_iterations = int(iter_ramp_up * config.max_iterations_fraction)
 
     # set up the model
     model = _build_autoencoder(config)
@@ -50,16 +59,16 @@ def train_encoder(config: ConfigBase):
     model.fit(
         train_dataset,
         epochs=config.epochs,
-        steps_per_epoch=NUM_IMAGES // config.batch_size,
+        steps_per_epoch=steps_per_epoch,
         callbacks=[tensorboard_callback, montage_callback],
     )
 
     # save the model weights
     config.model_dir.mkdir(parents=True, exist_ok=True)
-    model_filename = config.model_dir / config.filename_brief("weights")
+    model_filename = config.model_dir / config.filename("weights")
     model.encoder.save_weights(model_filename.with_suffix(".h5"))
 
-    decoder_filename = config.filename_brief("weights").replace("encoder", "decoder")
+    decoder_filename = config.filename("weights").replace("encoder", "decoder")
     model_filename = config.model_dir / decoder_filename
     model.decoder.save_weights(model_filename.with_suffix(".h5"))
 
@@ -70,9 +79,17 @@ def train_projector(config: ConfigBase):
 
     from .dataset import encoder_validation_dataset
 
-    # set up the model
-    model = _build_encoder(config)
-    model.summary()
+    # set up the model - train if weights don't exist
+    try:
+        model = _build_encoder(config)
+    except FileNotFoundError:
+        # train the encoder / decoder from scratch
+        config.model = 'encoder'
+        train_encoder(config)
+        # now load the weights & create the projector
+        config.model = 'projector'
+        model = _build_encoder(config)
+    # print (model.summary())
 
     # set up the datasets and augmentation
     projection_dataset = encoder_validation_dataset(config, batch_size=512)
@@ -145,31 +162,17 @@ def train(config: ConfigBase):
     config.log_dir = create_tensorboard_log_dir(config.log_dir)
     config.model_dir = Path(str(config.log_dir).replace("logs", "models"))
 
-    # write a param json file
-    config.docs_dir = Path(str(config.log_dir).replace("logs", "docs"))
-    config.docs_dir.mkdir(parents=True, exist_ok=True)
-
-    # record the config params
-    time_stamp = str(config.docs_dir).split("/")[-1]
-    json_data = write_config_dictionary(config)
-    file_name = 'Training-Session.json'
-    with open(f'{config.docs_dir}/{time_stamp}-{file_name}', 'w') as json_file:
-        json.dump(json_data, json_file, indent=4)
-
     # get the training function
     train_fn = getattr(sys.modules[__name__], f"train_{config.model.lower()}")
     train_fn(config)
+    write_config_dictionary(config)
 
 
-def write_config_dictionary(config: ConfigBase) -> dict:
+def write_config_dictionary(config: ConfigBase) -> None:
     """Record params of the training run."""
-    json_data = {}
-    for param in config.__dict__:
-        json_data[param] = str(getattr(config, param))
+    # extract the params into dict:
+    json_data = {prm : str(getattr(config, prm)) for prm in config.__dict__}
 
-    # add global variables
-    json_data["NUM_IMAGES"] = str(NUM_IMAGES)
-    json_data["MONTAGE_SAMPLES"] = str(MONTAGE_SAMPLES)
-    json_data["TEMPORAL_STEPS_PER_EPOCH"] = str(TEMPORAL_STEPS_PER_EPOCH)
-
-    return json_data
+    # write the data into json file:
+    with open(config.model_dir / 'ConfigHyperParams.json', 'w') as json_file:
+        json.dump(json_data, json_file, indent=4)
