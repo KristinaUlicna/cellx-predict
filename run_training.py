@@ -96,6 +96,13 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        "--gamma",
+        type=int,
+        default=1_000,
+        help="capacity loss regularisation scaling value",
+    )
+
+    parser.add_argument(
         "--num_outputs",
         type=int,
         default=3,
@@ -117,4 +124,5 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     config = config_from_args(args)
+    print (config)
     train(config)
