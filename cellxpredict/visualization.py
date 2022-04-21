@@ -5,7 +5,8 @@ from skimage.filters import median as median_filter
 from skimage.morphology import disk
 
 
-def float_to_uint8(x: np.ndarray[np.float32]) -> np.ndarray[np.uint8]:
+# def float_to_uint8(x: np.ndarray[np.float32]) -> np.ndarray[np.uint8]:
+def float_to_uint8(x: np.ndarray) -> np.ndarray:
     """Transforms an np.float32 image into a np.uint8 image
 
     Parameters
@@ -47,7 +48,8 @@ def norm_channel(
     high_percentile:width
         Normalized single-channel image
     """
-    copy = np.copy(x, dtype=np.float32)
+    #copy = np.copy(x, dtype=np.float32)
+    copy = np.copy(x)
 
     # remove outliers
     med = median_filter(copy, disk(sigma))

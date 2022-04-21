@@ -45,7 +45,7 @@ def latent_space_traversal(
         for l2_value in l2_values:
 
             latent_vector = np.zeros((latent_dim,))
-            latent_vector[l1] = l1_value
+            latent_vector[l1] = l1_valuea
             latent_vector[l2] = l2_value
 
             decoded = decoder.predict(latent_vector)
