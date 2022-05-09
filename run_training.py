@@ -110,6 +110,13 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        "--temporal_steps_per_epoch",
+        type=int,
+        default=100,
+        help="number of steps per epoch in temporal model",
+    )
+
+    parser.add_argument(
         "--use_probabilistic_encoder",
         action="store_true",
         help="use a probabilistic encoder while training model",
@@ -124,4 +131,5 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     config = config_from_args(args)
+    print(config)
     train(config)

@@ -60,6 +60,7 @@ class TemporalConfig(ConfigBase):
     max_len: int = 128
     dropout_rate: float = 0.3
     noise: float = 1.0
+    temporal_steps_per_epoch: int = 100
     use_probabilistic_encoder: bool = False
     use_rotations: bool = False
 

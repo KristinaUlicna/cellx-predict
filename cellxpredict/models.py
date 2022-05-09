@@ -130,6 +130,7 @@ def _build_temporal(config: ConfigBase) -> Tuple[K.Model]:
         The model.
     """
 
+    """
     from copy import deepcopy
 
     # build the projector
@@ -141,6 +142,10 @@ def _build_temporal(config: ConfigBase) -> Tuple[K.Model]:
     components = np.load(components_fn.with_suffix(".npz"))
 
     transformer = PCATransform(**components)
+    """
+
+    # you can try changing the prediction head ONLY activation function to:
+    #   -> "swish", "relu", "linear"
 
     # build the temporal model
     tcn, tcn_split_1, tcn_split_2 = build_split_TCN(
@@ -152,15 +157,19 @@ def _build_temporal(config: ConfigBase) -> Tuple[K.Model]:
 
     # build the grand model
     z = K.layers.Input(shape=(config.max_len, config.latent_dims))
-    projection = transformer(z)
-    prediction = tcn(projection)
+    # projection = transformer(z)
+    # prediction = tcn(projection)
+    prediction = tcn(z)
 
     model = K.Model(inputs=[z], outputs=[prediction], name=config.model)
 
     model.compile(
         optimizer=K.optimizers.RMSprop(learning_rate=0.001),
-        loss=K.losses.SparseCategoricalCrossentropy(from_logits=True),
-        metrics=[K.metrics.SparseCategoricalAccuracy()],
+        # loss=K.losses.SparseCategoricalCrossentropy(from_logits=True),
+        loss=K.losses.MeanSquaredError(name="MeanSquaredError"),
+        # metrics=[K.metrics.SparseCategoricalAccuracy()],
+        metrics=[K.metrics.RootMeanSquaredError(),
+                 K.metrics.MeanAbsoluteError(), ],
     )
 
     return model

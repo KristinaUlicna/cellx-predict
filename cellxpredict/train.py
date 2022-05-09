@@ -18,7 +18,7 @@ from .session import write_config_json_file
 
 # TODO(arl): remove these hard-coded values for release
 MONTAGE_SAMPLES = 32
-TEMPORAL_STEPS_PER_EPOCH = 100
+# TEMPORAL_STEPS_PER_EPOCH = 100
 
 
 def train_encoder(config: ConfigBase):
@@ -109,19 +109,24 @@ def train_temporal(config: ConfigBase):
     """Train the temporal model."""
 
     from .dataset import temporal_training_dataset
+    from .weighting import CLASS_WEIGHTS
+
+    # set up the datasets and augmentation
+    # config.use_probabilistic_encoder = True
+    train_dataset, validation_dataset = temporal_training_dataset(config)
+    config.latent_dims = validation_dataset[0].shape[2]
+    config.num_outputs = 1
 
     # set up the models
     model = _build_temporal(config)
-    model.summary()
-
-    # set up the datasets and augmentation
-    train_dataset, validation_dataset = temporal_training_dataset(config)
+    # model.summary()
 
     # set up callbacks
     tensorboard_callback = K.callbacks.TensorBoard(
         log_dir=config.log_dir, write_graph=True
     )
 
+    """
     confusion_callback = tensorboard_confusion_matrix_callback(
         model,
         validation_dataset[0],
@@ -130,17 +135,21 @@ def train_temporal(config: ConfigBase):
         class_names=["apoptosis", "mitosis", "synthetic"],
         is_binary=False,
     )
+    """
 
     # train the model
     model.fit(
         train_dataset,
         epochs=config.epochs,
-        steps_per_epoch=TEMPORAL_STEPS_PER_EPOCH,
-        callbacks=[tensorboard_callback, confusion_callback],
+        steps_per_epoch=config.temporal_steps_per_epoch,
+        # class_weight=CLASS_WEIGHTS,
+        # callbacks=[tensorboard_callback, confusion_callback],
+        callbacks=[tensorboard_callback],
         validation_data=validation_dataset,
     )
 
     # save the model weights
+    config.model_dir.mkdir(parents=True, exist_ok=True)
     model_filename = config.model_dir / config.filename("weights")
     model.save_weights(model_filename.with_suffix(".h5"))
 
@@ -152,11 +161,13 @@ def train(config: ConfigBase):
 
     # set up a log directory
     config.log_dir = create_tensorboard_log_dir(config.log_dir)
-    if config.model == 'encoder':
+    if config.model == 'encoder' or config.model == 'temporal':
         config.model_dir = Path(str(config.log_dir).replace("logs", "models"))
 
     # get the training function
     train_fn = getattr(sys.modules[__name__], f"train_{config.model.lower()}")
+    # print (config)
+
     train_fn(config)
-    if config.model == 'encoder':
+    if config.model == 'encoder' or config.model == 'temporal':
         write_config_json_file(config)

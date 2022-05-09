@@ -1,5 +1,5 @@
 import os
-from random import shuffle
+from random import seed, shuffle
 from typing import List, Tuple
 
 import numpy as np
@@ -66,15 +66,18 @@ def trim_encoding(x: np.ndarray, max_len: int, cutoff: int) -> np.ndarray:
         The per-channel normalized glimpse.
     """
     trimmed = x[: cutoff + 1, ...]
-    trimmed = trimmed[-max_len:, ...]
+    #trimmed = trimmed[-max_len:, ...]  # from the negative end
+    trimmed = trimmed[:max_len, ...]    # from the positive end
 
-    if trimmed.shape[0] < max_len:
-        pad = max_len - trimmed.shape[0]
-        trimmed = np.pad(trimmed, ((pad, 0), (0, 0), (0, 0)))
-        trimmed[:pad, ..., 1] = 1  # var=1, mean=0 for pad
+    # No need to pad the trajectories because all are at least 150 frames long:
+    # if trimmed.shape[0] < max_len:
+    #     pad = max_len - trimmed.shape[0]
+    #     trimmed = np.pad(trimmed, ((pad, 0), (0, 0), (0, 0)))
+    #     trimmed[:pad, ..., 1] = 1  # var=1, mean=0 for pad
 
-    assert trimmed.shape == (max_len, x.shape[1], x.shape[-1])
-
+    # print (trimmed.shape)
+    # assert trimmed.shape == (max_len, x.shape[1], x.shape[-1])
+    # -> this asks for a 3D array
     return trimmed
 
 
@@ -132,7 +135,7 @@ class TauVAEDataset:
 
     @property
     def labels(self) -> List[str]:
-        """Return a list of ground truth labels as stings."""
+        """Return a list of ground truth labels as strings."""
         return self._labels + ["synthetic"]
 
     def create_synthetic(self):
@@ -202,23 +205,115 @@ class TauVAEDataset:
         return validation, np.array(labels)
 
 
+class TauVAEDataset_Kristina:
+    """Dataset function for training the TauVAE.
+
+    Parameters
+    ----------
+    config : config.ConfigBase
+        A configuration.
+
+    """
+
+    def __init__(self, config: ConfigBase):
+        self._config = config
+        self._num_sequences = 0
+        self._train_labels = []
+        self._train_encodings = []
+        self._valid_labels = []
+        self._valid_encodings = []
+
+        # load encodings per file:
+        files = [np.load(config.src_dir / npz_file)
+                 for npz_file in os.listdir(config.src_dir)
+                 if npz_file.endswith('.npz')]
+
+        labels, encodings = [], []
+        for file in files:
+            for key, value in file.items():
+                cct = float(key.split('_')[-1])
+                labels.append(cct)
+                #enco = np.expand_dims(value[:, :32], axis=-1)
+                enco = np.expand_dims(value, axis=-1)
+                encodings.append(enco)
+
+        # shuffle the lists & allocate a portion for validation:
+        pooled = list(zip(labels, encodings))
+        seed(23)
+        shuffle(pooled)
+
+        # use a fraction of the data for validation
+        self._num_sequences = len(pooled)
+        n_validate = int(len(pooled) * VALIDATE_FRACTION) + 1
+        n_validate = min([n_validate, len(pooled)])
+
+        # split the data for a validation set
+        validation = [pooled.pop(0) for _ in range(n_validate)]
+        self._n_validate = n_validate
+
+        # break down into training & validation sets:
+        self._train_labels, self._train_encodings = zip(*pooled)
+        self._valid_labels, self._valid_encodings = zip(*validation)
+
+
+    def prepare_trimmed_sequences(self, choices, set_labels: list, set_encodings: list) -> Tuple[np.ndarray, np.ndarray]:
+
+        cutoff, max_len = self._config.max_len, self._config.max_len
+        labels = np.array([set_labels[ch] for ch in choices])
+        batch = np.stack([trim_encoding(set_encodings[ch], max_len, cutoff)
+                 for ch in choices], axis=0)
+        return batch, labels
+
+
+    def batch(self) -> Tuple[np.ndarray, np.ndarray]:
+        """Return a batch of augmented data."""
+
+        ch = np.random.choice(len(self._train_labels), self._config.batch_size)
+
+        batch, labels = self.prepare_trimmed_sequences(
+            choices = ch,
+            set_labels = self._train_labels,
+            set_encodings = self._train_encodings,
+        )
+        #print (batch.shape, batch.dtype, labels.shape, labels.dtype)
+
+        return batch, labels
+
+
+    def validation(self) -> Tuple[np.ndarray, np.ndarray]:
+        """Return the validation set."""
+
+        batch, labels = self.prepare_trimmed_sequences(
+            choices = range(len(self._valid_labels)),
+            set_labels = self._valid_labels,
+            set_encodings = self._valid_encodings,
+        )
+        #print (batch.shape, batch.dtype, labels.shape, labels.dtype)
+
+        return batch, labels
+
+
 def temporal_training_dataset(config: ConfigBase):
     """Temporal model training dataset."""
 
-    dataset = TauVAEDataset(config)
+    # dataset = TauVAEDataset(config)
+    dataset = TauVAEDataset_Kristina(config)
+    config.num_sequences = dataset._num_sequences
+
     validation = dataset.validation()
     noise = config.noise if config.use_probabilistic_encoder else 0.0
 
     def generator(dataset, noise):
         def sampler(encoding, noise: float = 1.0):
             mean = encoding[..., 0]
-            log_var = encoding[..., 1]
+            #log_var = encoding[..., 1]
             epsilon = np.random.normal(size=mean.shape) * noise
-            return mean + np.exp(0.5 * log_var) * epsilon
+            #return mean + np.exp(0.5 * log_var) * epsilon
+            return mean + epsilon
 
         while True:
-            # get a batch and either sample from the encoding or provide the
-            # latent encoding
+            # get a batch and either sample from the encoding
+            # or provide the latent encoding
             batch, labels = dataset.batch()
             encodings = sampler(batch, noise)
 
