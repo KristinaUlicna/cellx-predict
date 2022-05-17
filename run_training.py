@@ -129,6 +129,27 @@ if __name__ == "__main__":
         help="amplitude of noise when using a probabilistic encoder",
     )
 
+    parser.add_argument(
+        "--reduction",
+        type=str,
+        default="auto",
+        help="type of objective (loss) function reduction",
+    )
+
+    parser.add_argument(
+        "--learning_rate",
+        type=float,
+        default=0.001,
+        help="RMSprop optimiser's learning rate",
+    )
+
+    parser.add_argument(
+        "--filters_per_feature",
+        type=int,
+        default=32,
+        help="number of units per input feature",
+    )
+
     args = parser.parse_args()
     config = config_from_args(args)
     print(config)

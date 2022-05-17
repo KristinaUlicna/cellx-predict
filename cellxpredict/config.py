@@ -63,6 +63,9 @@ class TemporalConfig(ConfigBase):
     temporal_steps_per_epoch: int = 100
     use_probabilistic_encoder: bool = False
     use_rotations: bool = False
+    reduction: str = "auto"
+    learning_rate: float = 0.001
+    filters_per_feature: int = 32
 
 
 @dataclass

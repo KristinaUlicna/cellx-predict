@@ -232,6 +232,8 @@ class TauVAEDataset_Kristina:
         for file in files:
             for key, value in file.items():
                 cct = float(key.split('_')[-1])
+                # if cct > 300.0:
+                #     continue
                 labels.append(cct)
                 #enco = np.expand_dims(value[:, :32], axis=-1)
                 enco = np.expand_dims(value, axis=-1)
@@ -259,7 +261,7 @@ class TauVAEDataset_Kristina:
     def prepare_trimmed_sequences(self, choices, set_labels: list, set_encodings: list) -> Tuple[np.ndarray, np.ndarray]:
 
         cutoff, max_len = self._config.max_len, self._config.max_len
-        labels = np.array([set_labels[ch] for ch in choices])
+        labels = np.array([set_labels[ch] for ch in choices], dtype=np.float32)
         batch = np.stack([trim_encoding(set_encodings[ch], max_len, cutoff)
                  for ch in choices], axis=0)
         return batch, labels
@@ -276,7 +278,6 @@ class TauVAEDataset_Kristina:
             set_encodings = self._train_encodings,
         )
         #print (batch.shape, batch.dtype, labels.shape, labels.dtype)
-
         return batch, labels
 
 

@@ -146,11 +146,13 @@ def _build_temporal(config: ConfigBase) -> Tuple[K.Model]:
 
     # you can try changing the prediction head ONLY activation function to:
     #   -> "swish", "relu", "linear"
+    config.num_tcn_filters = config.filters_per_feature * config.latent_dims
 
     # build the temporal model
     tcn, tcn_split_1, tcn_split_2 = build_split_TCN(
         config.max_len,
         config.latent_dims,
+        num_tcn_filters=config.num_tcn_filters,
         num_outputs=config.num_outputs,
         dropout_rate=config.dropout_rate,
     )
@@ -164,9 +166,10 @@ def _build_temporal(config: ConfigBase) -> Tuple[K.Model]:
     model = K.Model(inputs=[z], outputs=[prediction], name=config.model)
 
     model.compile(
-        optimizer=K.optimizers.RMSprop(learning_rate=0.001),
+        optimizer=K.optimizers.RMSprop(learning_rate=config.learning_rate),
         # loss=K.losses.SparseCategoricalCrossentropy(from_logits=True),
-        loss=K.losses.MeanSquaredError(name="MeanSquaredError"),
+        loss=K.losses.MeanSquaredError(name="MeanSquaredError",
+                                       reduction=config.reduction),
         # metrics=[K.metrics.SparseCategoricalAccuracy()],
         metrics=[K.metrics.RootMeanSquaredError(),
                  K.metrics.MeanAbsoluteError(), ],
